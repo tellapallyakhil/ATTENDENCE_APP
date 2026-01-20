@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'absentees_screenshot_screen.dart';
+import 'attendance_share_screen.dart';
 import 'ocr_import_screen.dart';
 
 
@@ -234,6 +235,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
                     ? Center(child: Text("No students found", style: GoogleFonts.outfit(color: Colors.white54)))
                     : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      cacheExtent: 500, // Cache more items for smoother scroll
                       itemCount: filteredStudents.length,
                       itemBuilder: (context, index) {
                         final s = filteredStudents[index];
@@ -242,7 +244,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
                           student: s,
                           firestoreService: _firestoreService,
                           onLongPress: () => _showNoteDialog(context, s),
-                        ).animate().fadeIn(duration: 200.ms).slideX();
+                        );
                       },
                     ),
                   ),
@@ -256,21 +258,27 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
         stream: _firestoreService.getStudents(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
-          final absentees = snapshot.data!.where((s) => !s.isPresent).toList();
-          if (absentees.isEmpty) return const SizedBox.shrink();
+          final allStudents = snapshot.data!;
+          final absentees = allStudents.where((s) => !s.isPresent).toList();
 
           return FloatingActionButton.extended(
-            backgroundColor: Colors.redAccent,
+            backgroundColor: absentees.isEmpty ? Colors.green : Colors.redAccent,
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AbsenteesScreenshotScreen(absentees: absentees),
+                  builder: (_) => AttendanceShareScreen(allStudents: allStudents),
                 ),
               );
             },
-            label: Text("${absentees.length} Absent", style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
-            icon: const Icon(Icons.assignment_late, color: Colors.white),
+            label: Text(
+              absentees.isEmpty ? "All Present!" : "${absentees.length} Absent", 
+              style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)
+            ),
+            icon: Icon(
+              absentees.isEmpty ? Icons.check_circle : Icons.assignment_late, 
+              color: Colors.white
+            ),
           ).animate().scale(delay: 500.ms);
         }
       ),

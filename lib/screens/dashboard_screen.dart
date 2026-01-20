@@ -162,7 +162,22 @@ class DashboardScreen extends StatelessWidget {
                      ),
                    ),
                 ),
-              ),
+               ),
+
+               // Watermark
+               Padding(
+                 padding: const EdgeInsets.only(bottom: 10),
+                 child: Center(
+                   child: Text(
+                     'Made by Tellapalli Akhil Kumar',
+                     style: GoogleFonts.outfit(
+                       fontSize: 12,
+                       color: Colors.white24,
+                       fontStyle: FontStyle.italic,
+                     ),
+                   ),
+                 ),
+               ),
             ],
           ),
         ),
