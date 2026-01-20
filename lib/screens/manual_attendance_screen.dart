@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'absentees_screenshot_screen.dart';
+import 'ocr_import_screen.dart';
 
 
 class ManualAttendanceScreen extends StatefulWidget {
@@ -34,6 +35,7 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -70,6 +72,16 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
             onPressed: () => _showAddStudentDialog(context),
             icon: const Icon(Icons.person_add),
             tooltip: 'Add Student',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const OCRImportScreen()),
+              );
+            },
+            icon: const Icon(Icons.document_scanner),
+            tooltip: 'Scan List',
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
