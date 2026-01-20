@@ -1,0 +1,35 @@
+name: attendance_app
+description: Attendance app with PDF export
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  screenshot: ^3.0.0
+  path_provider: ^2.1.2
+  firebase_core: ^3.10.0
+  cloud_firestore: ^5.6.0
+  google_mlkit_face_detection: ^0.13.0
+  camera: ^0.11.0
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0 # For premium animations
+  glassmorphism: ^3.0.0 # For premium UI
+  permission_handler: ^11.3.0 # For runtime permissions
+  intl: ^0.19.0 # For date formatting
+
+flutter:
+  uses-material-design: true
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/app_icon.png"

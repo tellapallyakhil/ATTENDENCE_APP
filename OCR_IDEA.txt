@@ -1,0 +1,24 @@
+# Feature Idea: OCR Student List Import
+
+## Objective
+Enable the user to import a list of students by scanning a physical document (JPG/Photo) instead of manual entry.
+
+## Workflow
+1. **User Interaction**:
+   - User clicks a "Scan List" button in the Manual Attendance screen.
+   - User takes a photo of a printed class list or selects one from the gallery.
+
+2. **Processing (OCR)**:
+   - The app uses `google_mlkit_text_recognition` to extract raw text from the image.
+   - The app applies regex/parsing logic to identify:
+     - Student Names (Capitalized words).
+     - Registration Numbers (e.g., patterns like 21BCE1001).
+
+3. **Verification & Action**:
+   - The app presents the extracted list to the user for confirmation.
+   - User selects distinct students or "Add All".
+   - The verified students are added to the Firestore database and displayed in the manual attendance list.
+
+## Tech Stack
+- `google_mlkit_text_recognition`: For on-device, offline OCR.
+- `image_picker`: For camera/gallery access.
