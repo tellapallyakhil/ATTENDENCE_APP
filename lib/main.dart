@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'screens/student_input_screen.dart';
 import 'screens/dashboard_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';

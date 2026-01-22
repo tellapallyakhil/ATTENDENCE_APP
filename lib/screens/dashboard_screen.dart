@@ -1,5 +1,6 @@
 import 'package:attendance_app/screens/smart_attendance_screen.dart';
 import 'package:attendance_app/screens/manual_attendance_screen.dart';
+import 'package:attendance_app/screens/id_card_scanner_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:glassmorphism/glassmorphism.dart';
@@ -98,6 +99,20 @@ class DashboardScreen extends StatelessWidget {
                 color: secondaryColor,
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ManualAttendanceScreen()));
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // ID Card Scanner Card (NEW!)
+              _buildDashboardCard(
+                context,
+                title: 'ID Card Scanner',
+                subtitle: 'Scan ID cards offline',
+                icon: Icons.credit_card,
+                color: Colors.purpleAccent,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const IDCardScannerScreen()));
                 },
               ),
 

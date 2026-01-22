@@ -8,6 +8,7 @@ import 'dart:async';
 import 'absentees_screenshot_screen.dart';
 import 'attendance_share_screen.dart';
 import 'ocr_import_screen.dart';
+import 'id_card_scanner_screen.dart';
 
 
 class ManualAttendanceScreen extends StatefulWidget {
@@ -83,6 +84,16 @@ class _ManualAttendanceScreenState extends State<ManualAttendanceScreen> {
             },
             icon: const Icon(Icons.document_scanner),
             tooltip: 'Scan List',
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const IDCardScannerScreen()),
+              );
+            },
+            icon: const Icon(Icons.credit_card),
+            tooltip: 'Scan ID Card',
           ),
           PopupMenuButton<String>(
             onSelected: (value) {

@@ -51,7 +51,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     final period = _periodController.text.trim().isEmpty 
         ? '' 
         : ' (${_periodController.text.trim()})';
-    final date = DateFormat('dd MMM yyyy').format(DateTime.now());
+    final date = DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now());
     final type = _showAbsentees ? 'Absentees' : 'Presentees';
     
     final StringBuffer message = StringBuffer();
@@ -65,7 +65,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     message.writeln('*Reg. Numbers:*');
     message.writeln(selectedStudents.map((s) => s.regNo).join(', '));
     message.writeln('');
-    message.writeln('_Smart Attendance App_');
+    message.writeln('_S10_Attendance App_');
     
     Share.share(message.toString());
   }
@@ -128,7 +128,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _buildTextField(_periodController, 'Period', '4-6'),
+                      child: _buildTextField(_periodController, 'Duration', '4-6 PM'),
                     ),
                   ],
                 ),
@@ -151,7 +151,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
                   ),
                 ),
                 Text(
-                  DateFormat('dd MMM yyyy').format(DateTime.now()),
+                  DateFormat('dd MMM, hh:mm a').format(DateTime.now()),
                   style: GoogleFonts.outfit(color: textColor.withOpacity(0.7)),
                 ),
               ],
