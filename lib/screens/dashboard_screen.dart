@@ -27,6 +27,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF0F172A),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -37,7 +38,12 @@ class DashboardScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            child: Column(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
@@ -176,7 +182,7 @@ class DashboardScreen extends StatelessWidget {
                 // Watermark
                 Center(
                   child: Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: 20),
                     child: Text(
                       'Made by Tellapalli Akhil Kumar',
                       style: GoogleFonts.outfit(
@@ -186,6 +192,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
+           ),
           ),
         ),
       ),

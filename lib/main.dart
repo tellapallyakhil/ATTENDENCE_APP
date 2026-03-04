@@ -42,7 +42,7 @@ class AttendanceApp extends StatelessWidget {
           seedColor: const Color(0xFF00E5FF), // Cyan/Teal Seed
           brightness: Brightness.dark, // Default to dark for this theme
         ),
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
 
         appBarTheme: const AppBarTheme(
           centerTitle: true,
