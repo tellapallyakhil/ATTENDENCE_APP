@@ -3,9 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/student.dart';
+import '../models/attendance_history.dart';
+import '../services/firestore_service.dart';
 
-/// Mobile-optimized Attendance Share Screen
-/// Allows sharing absentees or presentees with subject name and time period
+/// Attendance Share Screen with History saving
 class AttendanceShareScreen extends StatefulWidget {
   final List<Student> allStudents;
 
@@ -21,16 +22,16 @@ class AttendanceShareScreen extends StatefulWidget {
 class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _periodController = TextEditingController();
+  final FirestoreService _firestoreService = FirestoreService();
   bool _showAbsentees = true;
+  bool _isSaving = false;
   
-  // Cache lists to avoid recalculating
   late final List<Student> _absentees;
   late final List<Student> _presentees;
   
   @override
   void initState() {
     super.initState();
-    // Pre-compute lists once
     _absentees = widget.allStudents.where((s) => !s.isPresent).toList();
     _presentees = widget.allStudents.where((s) => s.isPresent).toList();
   }
@@ -44,20 +45,23 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     super.dispose();
   }
 
-  void _shareMessage() {
+  /// Save to history + share
+  void _shareAndSave() async {
     final subject = _subjectController.text.trim().isEmpty 
         ? 'General' 
         : _subjectController.text.trim();
     final period = _periodController.text.trim().isEmpty 
         ? '' 
-        : ' (${_periodController.text.trim()})';
-    final date = DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now());
+        : _periodController.text.trim();
+    final now = DateTime.now();
+    final date = DateFormat('dd MMM yyyy, hh:mm a').format(now);
     final type = _showAbsentees ? 'Absentees' : 'Presentees';
     
+    // Build share message
     final StringBuffer message = StringBuffer();
     message.writeln('📋 *$type Report*');
     message.writeln('━━━━━━━━━━━━━━');
-    message.writeln('📚 Subject: $subject$period');
+    message.writeln('📚 Subject: $subject${period.isNotEmpty ? " ($period)" : ""}');
     message.writeln('📅 Date: $date');
     message.writeln('👥 Total: ${selectedStudents.length}');
     message.writeln('━━━━━━━━━━━━━━');
@@ -67,7 +71,53 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     message.writeln('');
     message.writeln('_S10_Attendance App_');
     
+    // Save to history in background
+    _saveToHistory(subject, period, now);
+    
     Share.share(message.toString());
+  }
+
+  /// Save report only (without sharing)
+  Future<void> _saveReportOnly() async {
+    final subject = _subjectController.text.trim().isEmpty 
+        ? 'General' 
+        : _subjectController.text.trim();
+    final period = _periodController.text.trim();
+
+    setState(() => _isSaving = true);
+    await _saveToHistory(subject, period, DateTime.now());
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Report saved to history'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Save attendance data to Firestore history
+  Future<void> _saveToHistory(String subject, String period, DateTime now) async {
+    final history = AttendanceHistory(
+      subject: subject,
+      period: period,
+      timestamp: now,
+      totalStudents: widget.allStudents.length,
+      presentCount: _presentees.length,
+      absentCount: _absentees.length,
+      absentRegNos: _absentees.map((s) => s.regNo).toList(),
+      absentNames: _absentees.map((s) => s.name).toList(),
+      presentRegNos: _presentees.map((s) => s.regNo).toList(),
+    );
+
+    try {
+      await _firestoreService.saveHistory(history);
+    } catch (e) {
+      debugPrint('History save error: $e');
+    }
   }
 
   @override
@@ -90,21 +140,29 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Save to history button
+          IconButton(
+            icon: _isSaving 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.save),
+            onPressed: _isSaving ? null : _saveReportOnly,
+            tooltip: 'Save to History',
+          ),
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: _shareMessage,
+            onPressed: _shareAndSave,
+            tooltip: 'Share & Save',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Toggle & Input Section (Fixed height for performance)
+          // Toggle & Input Section
           Container(
             color: Colors.grey.shade100,
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                // Toggle Buttons
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
@@ -119,7 +177,6 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Input Fields
                 Row(
                   children: [
                     Expanded(
@@ -145,10 +202,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
               children: [
                 Text(
                   'Total: ${selectedStudents.length}',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: textColor),
                 ),
                 Text(
                   DateFormat('dd MMM, hh:mm a').format(DateTime.now()),
@@ -158,7 +212,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
             ),
           ),
           
-          // Registration Numbers (Scrollable)
+          // Registration Numbers
           Expanded(
             child: selectedStudents.isEmpty
               ? Center(
@@ -192,28 +246,46 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
                 ),
           ),
           
-          // Share Button (Fixed at bottom)
+          // Bottom Buttons
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _shareMessage,
-                  icon: const Icon(Icons.share, size: 20),
-                  label: Text(
-                    'Share ${isAbsent ? 'Absentees' : 'Presentees'}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  // Save only button
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isSaving ? null : _saveReportOnly,
+                      icon: const Icon(Icons.save, size: 18),
+                      label: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: color,
+                        side: BorderSide(color: color),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  // Share + Save button
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _shareAndSave,
+                      icon: const Icon(Icons.share, size: 18),
+                      label: Text(
+                        'Share ${isAbsent ? 'Absentees' : 'Presentees'}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: color,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
