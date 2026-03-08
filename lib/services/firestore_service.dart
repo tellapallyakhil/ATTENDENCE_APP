@@ -1,13 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
-import '../models/attendance_history.dart';
 import '../data/student_data.dart';
 
 class FirestoreService {
   final CollectionReference _studentsCollection =
       FirebaseFirestore.instance.collection('students');
-  final CollectionReference _historyCollection =
-      FirebaseFirestore.instance.collection('attendance_history');
 
   // Seed data if empty
   Future<void> initializeData() async {
@@ -118,49 +115,5 @@ class FirestoreService {
       batch.update(doc.reference, {'isPresent': isPresent});
     }
     await batch.commit();
-  }
-
-  // ====== HISTORY METHODS ======
-
-  /// Save attendance report to history
-  Future<void> saveHistory(AttendanceHistory history) async {
-    try {
-      await _historyCollection.add(history.toMap());
-    } catch (e) {
-      print('Error saving history: $e');
-    }
-  }
-
-  /// Get all history records, newest first
-  Stream<List<AttendanceHistory>> getHistory() {
-    return _historyCollection
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return AttendanceHistory.fromMap(
-            doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-    });
-  }
-
-  /// Get history once
-  Future<List<AttendanceHistory>> getHistoryOnce() async {
-    final snapshot = await _historyCollection
-        .orderBy('timestamp', descending: true)
-        .get();
-    return snapshot.docs.map((doc) {
-      return AttendanceHistory.fromMap(
-          doc.data() as Map<String, dynamic>, doc.id);
-    }).toList();
-  }
-
-  /// Delete a history record
-  Future<void> deleteHistory(String docId) async {
-    try {
-      await _historyCollection.doc(docId).delete();
-    } catch (e) {
-      print('Error deleting history: $e');
-    }
   }
 }

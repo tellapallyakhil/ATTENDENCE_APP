@@ -4,9 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/student.dart';
 import '../models/attendance_history.dart';
-import '../services/firestore_service.dart';
+import '../services/local_history_service.dart';
 
-/// Attendance Share Screen with History saving
+/// Attendance Share Screen with offline History saving
 class AttendanceShareScreen extends StatefulWidget {
   final List<Student> allStudents;
 
@@ -22,7 +22,7 @@ class AttendanceShareScreen extends StatefulWidget {
 class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _periodController = TextEditingController();
-  final FirestoreService _firestoreService = FirestoreService();
+  final LocalHistoryService _historyService = LocalHistoryService.instance;
   bool _showAbsentees = true;
   bool _isSaving = false;
   
@@ -71,7 +71,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     message.writeln('');
     message.writeln('_S10_Attendance App_');
     
-    // Save to history in background
+    // Save to local history (offline)
     _saveToHistory(subject, period, now);
     
     Share.share(message.toString());
@@ -91,7 +91,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✓ Report saved to history'),
+          content: Text('✓ Report saved to history (offline)'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ),
@@ -99,9 +99,10 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     }
   }
 
-  /// Save attendance data to Firestore history
+  /// Save attendance data to local storage (offline)
   Future<void> _saveToHistory(String subject, String period, DateTime now) async {
     final history = AttendanceHistory(
+      id: '${now.millisecondsSinceEpoch}',
       subject: subject,
       period: period,
       timestamp: now,
@@ -114,7 +115,7 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
     );
 
     try {
-      await _firestoreService.saveHistory(history);
+      await _historyService.saveHistory(history);
     } catch (e) {
       debugPrint('History save error: $e');
     }
@@ -140,7 +141,6 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Save to history button
           IconButton(
             icon: _isSaving 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -252,7 +252,6 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  // Save only button
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isSaving ? null : _saveReportOnly,
@@ -267,7 +266,6 @@ class _AttendanceShareScreenState extends State<AttendanceShareScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Share + Save button
                   Expanded(
                     flex: 2,
                     child: ElevatedButton.icon(

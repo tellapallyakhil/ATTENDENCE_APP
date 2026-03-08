@@ -1,8 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Model for storing attendance history records
+/// Model for storing attendance history records (offline-first)
 class AttendanceHistory {
-  final String? docId;
+  final String id; // unique local ID
   final String subject;
   final String period;
   final DateTime timestamp;
@@ -14,7 +12,7 @@ class AttendanceHistory {
   final List<String> presentRegNos;
 
   AttendanceHistory({
-    this.docId,
+    required this.id,
     required this.subject,
     required this.period,
     required this.timestamp,
@@ -26,11 +24,13 @@ class AttendanceHistory {
     required this.presentRegNos,
   });
 
-  Map<String, dynamic> toMap() {
+  /// Convert to JSON-safe map (no Firestore dependency)
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'subject': subject,
       'period': period,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': timestamp.millisecondsSinceEpoch,
       'totalStudents': totalStudents,
       'presentCount': presentCount,
       'absentCount': absentCount,
@@ -40,14 +40,12 @@ class AttendanceHistory {
     };
   }
 
-  factory AttendanceHistory.fromMap(Map<String, dynamic> map, String id) {
+  factory AttendanceHistory.fromJson(Map<String, dynamic> map) {
     return AttendanceHistory(
-      docId: id,
+      id: map['id'] ?? '',
       subject: map['subject'] ?? '',
       period: map['period'] ?? '',
-      timestamp: map['timestamp'] != null
-          ? (map['timestamp'] as Timestamp).toDate()
-          : DateTime.now(),
+      timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp'] ?? 0),
       totalStudents: map['totalStudents'] ?? 0,
       presentCount: map['presentCount'] ?? 0,
       absentCount: map['absentCount'] ?? 0,
