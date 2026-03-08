@@ -13,7 +13,7 @@ class MLService {
   
   // Frame skipping for performance - process every Nth frame
   int _frameCount = 0;
-  static const int _frameSkip = 2; // Process every 2nd frame for better performance
+  static const int _frameSkip = 3; // Process every 3rd frame for better performance
 
   MLService() {
     _initializeDetector();
@@ -26,14 +26,12 @@ class MLService {
       if (Platform.isAndroid || Platform.isIOS) {
         _faceDetector = FaceDetector(
           options: FaceDetectorOptions(
-            // FAST mode for real-time performance
             performanceMode: FaceDetectorMode.fast,
-            // Disable heavy features for speed
             enableContours: false,
-            enableClassification: true, // Keep for smile/eye detection
-            enableLandmarks: false, // Disable for speed
-            enableTracking: true, // Enable tracking for consistent IDs
-            minFaceSize: 0.15, // Minimum face size relative to image
+            enableClassification: true,
+            enableLandmarks: false,
+            enableTracking: true,
+            minFaceSize: 0.1, // Detect smaller faces too
           ),
         );
       }
@@ -43,7 +41,6 @@ class MLService {
   }
 
   /// Process camera frame with performance optimizations
-  /// Returns null if busy or frame should be skipped
   Future<List<Face>?> processImage(
     CameraImage image, 
     int sensorOrientation, 
@@ -65,7 +62,6 @@ class MLService {
         return null;
       }
 
-      // Run face detection in isolate for better UI performance
       final faces = await _faceDetector!.processImage(inputImage);
       _isBusy = false;
       return faces;
@@ -76,23 +72,52 @@ class MLService {
     }
   }
 
-  /// Optimized camera image conversion
+  /// Process a static image file (from gallery/camera capture)
+  Future<List<Face>?> processImageFile(String filePath) async {
+    if (_faceDetector == null) return null;
+    
+    try {
+      final inputImage = InputImage.fromFilePath(filePath);
+      final faces = await _faceDetector!.processImage(inputImage);
+      return faces;
+    } catch (e) {
+      debugPrint('Face detection from file error: $e');
+      return null;
+    }
+  }
+
+  /// Robust camera image conversion - handles multiple Android formats
   InputImage? _convertCameraImage(
     CameraImage image, 
     int sensorOrientation, 
     CameraLensDirection lensDirection
   ) {
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+    // Try to get format from raw value
+    InputImageFormat? format;
+    
+    if (Platform.isAndroid) {
+      // Android: YUV420 format (raw value 35 = YUV_420_888)
+      format = InputImageFormatValue.fromRawValue(image.format.raw);
+      if (format == null) {
+        // Fallback: assume nv21 for Android (most common)
+        format = InputImageFormat.nv21;
+      }
+    } else if (Platform.isIOS) {
+      // iOS: BGRA8888 format
+      format = InputImageFormatValue.fromRawValue(image.format.raw);
+      if (format == null) {
+        format = InputImageFormat.bgra8888;
+      }
+    }
+    
     if (format == null) return null;
 
-    // Use direct byte concatenation for speed
-    final int totalBytes = image.planes.fold(0, (sum, plane) => sum + plane.bytes.length);
-    final bytes = Uint8List(totalBytes);
-    int offset = 0;
+    // Concatenate all planes into a single byte array
+    final allBytes = WriteBuffer();
     for (final plane in image.planes) {
-      bytes.setRange(offset, offset + plane.bytes.length, plane.bytes);
-      offset += plane.bytes.length;
+      allBytes.putUint8List(plane.bytes);
     }
+    final bytes = allBytes.done().buffer.asUint8List();
 
     final imageRotation = InputImageRotationValue.fromRawValue(sensorOrientation);
     if (imageRotation == null) return null;
@@ -108,15 +133,15 @@ class MLService {
     );
   }
 
-  /// Get face analysis data (smile probability, eye open probability)
+  /// Get face analysis data
   Map<String, dynamic>? analyzeFace(Face face) {
     return {
       'trackingId': face.trackingId,
       'smileProb': face.smilingProbability ?? 0.0,
       'leftEyeOpen': face.leftEyeOpenProbability ?? 0.0,
       'rightEyeOpen': face.rightEyeOpenProbability ?? 0.0,
-      'headAngleY': face.headEulerAngleY ?? 0.0, // Looking left/right
-      'headAngleZ': face.headEulerAngleZ ?? 0.0, // Tilting head
+      'headAngleY': face.headEulerAngleY ?? 0.0,
+      'headAngleZ': face.headEulerAngleZ ?? 0.0,
       'boundingBox': face.boundingBox,
     };
   }

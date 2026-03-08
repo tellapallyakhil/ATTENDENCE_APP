@@ -6,7 +6,6 @@ class OCRService {
   TextRecognizer? _textRecognizer;
 
   OCRService() {
-    // Only initialize on mobile platforms
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       _textRecognizer = TextRecognizer();
     }
@@ -21,53 +20,75 @@ class OCRService {
     try {
       final inputImage = InputImage.fromFilePath(imagePath);
       final recognizedText = await _textRecognizer!.processImage(inputImage);
-
-      // Parse the recognized text to extract student info
+      
+      debugPrint('=== RAW OCR TEXT ===');
+      debugPrint(recognizedText.text);
+      debugPrint('==================');
+      
       return _parseStudentData(recognizedText.text);
     } catch (e) {
-      print('OCR Error: $e');
+      debugPrint('OCR Error: $e');
       return [];
+    }
+  }
+
+  /// Get raw text from image (useful for debugging)
+  Future<String> getRawText(String imagePath) async {
+    if (_textRecognizer == null) return 'OCR not available on this platform';
+    
+    try {
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final recognizedText = await _textRecognizer!.processImage(inputImage);
+      return recognizedText.text;
+    } catch (e) {
+      return 'Error: $e';
     }
   }
 
   /// Parse raw OCR text to extract names and registration numbers
   List<Map<String, String>> _parseStudentData(String rawText) {
     final List<Map<String, String>> students = [];
-    
-    // Split by lines
     final lines = rawText.split('\n');
     
-    // Regex patterns
-    // Registration number pattern: digits followed by letters and more digits (e.g., 99230040723, 21BCE1234)
-    final regNoPattern = RegExp(r'\b(\d{2,}[A-Za-z]*\d{3,})\b');
+    // Registration number patterns:
+    // 1. Pure digits 8-15 chars: 99230040723
+    // 2. Alphanumeric: 21BCE1234, RA2211003010567
+    final regNoPatterns = [
+      RegExp(r'\b(\d{8,15})\b'),                    // Pure digits
+      RegExp(r'\b(\d{2}[A-Z]{2,4}\d{4,})\b'),       // Like 21BCE1234
+      RegExp(r'\b([A-Z]{2}\d{10,})\b'),              // Like RA2211003010567
+      RegExp(r'\b(\d{2,4}[A-Z]+\d{3,})\b'),         // General alphanumeric
+    ];
     
-    // Name pattern: 2+ consecutive capitalized words
-    final namePattern = RegExp(r'\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)+)\b');
+    // Name pattern: 2+ words that are mostly letters
+    final namePattern = RegExp(r'\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b');
     
     String? currentName;
     String? currentRegNo;
     
     for (final line in lines) {
       final trimmedLine = line.trim();
-      if (trimmedLine.isEmpty) continue;
+      if (trimmedLine.isEmpty || trimmedLine.length < 3) continue;
       
       // Try to find registration number
-      final regMatch = regNoPattern.firstMatch(trimmedLine);
-      if (regMatch != null) {
-        currentRegNo = regMatch.group(1);
+      if (currentRegNo == null) {
+        for (final pattern in regNoPatterns) {
+          final regMatch = pattern.firstMatch(trimmedLine);
+          if (regMatch != null) {
+            currentRegNo = regMatch.group(1);
+            break;
+          }
+        }
       }
       
-      // Try to find name (uppercase words)
-      final nameMatch = namePattern.firstMatch(trimmedLine.toUpperCase());
-      if (nameMatch != null) {
-        // Use the original case from the line
-        final words = trimmedLine.split(RegExp(r'\s+'));
-        final nameWords = words.where((w) => 
-          RegExp(r'^[A-Za-z]+$').hasMatch(w) && w.length > 1
-        ).take(4).toList();
-        
-        if (nameWords.length >= 2) {
-          currentName = nameWords.join(' ').toUpperCase();
+      // Try to find name (2+ capitalized words, not common labels)
+      if (currentName == null) {
+        final nameMatch = namePattern.firstMatch(trimmedLine);
+        if (nameMatch != null) {
+          final candidate = nameMatch.group(1)!;
+          if (!_isNonNameText(candidate) && candidate.split(' ').length >= 2) {
+            currentName = candidate.toUpperCase();
+          }
         }
       }
       
@@ -82,19 +103,32 @@ class OCRService {
       }
     }
     
-    // Alternative: Look for reg numbers alone and use nearby text as name
+    // Fallback: if no pairs found, just extract all reg numbers
     if (students.isEmpty) {
-      // Fallback: Just extract all reg numbers found
-      final allRegMatches = regNoPattern.allMatches(rawText);
-      for (final match in allRegMatches) {
-        students.add({
-          'name': 'Student ${students.length + 1}',
-          'regNo': match.group(1)!,
-        });
+      for (final pattern in regNoPatterns) {
+        final allMatches = pattern.allMatches(rawText);
+        for (final match in allMatches) {
+          students.add({
+            'name': 'Student ${students.length + 1}',
+            'regNo': match.group(1)!,
+          });
+        }
+        if (students.isNotEmpty) break; // Use first pattern that finds results
       }
     }
     
     return students;
+  }
+
+  /// Check if text is a common label rather than a name
+  bool _isNonNameText(String text) {
+    final lower = text.toLowerCase();
+    const skip = [
+      'serial number', 'roll number', 'reg number', 'registration number',
+      'student name', 'student list', 'class list', 'attendance list',
+      'department of', 'school of', 'faculty of',
+    ];
+    return skip.any((s) => lower.contains(s));
   }
 
   void dispose() {
